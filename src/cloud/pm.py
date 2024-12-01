@@ -71,7 +71,7 @@ class PM:
         total_cpu_usage = sum(vm.cpu_usage for vm in self.vms)
         total_memory_usage = sum(vm.memory_usage for vm in self.vms)
         cpu_utilization = (total_cpu_usage / (self.cpu_core * self.cpu_speed)) * 100
-        memory_utilization = (total_memory_usage / self.memory_capacity) * 100
+        memory_utilization = (total_memory_usage / self.memory) * 100
         status = "Normal"
         if cpu_utilization > self.upper_bound or memory_utilization > self.upper_bound:
             status = "Overloaded"

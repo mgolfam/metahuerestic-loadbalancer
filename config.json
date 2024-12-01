@@ -1,0 +1,35 @@
+{
+    "task_queue": {
+      "directory": "assets/dataset/list"
+    },
+    "load_balancer": {
+      "default_algorithm": "PCO",
+      "batch_size": 10
+    },
+    "metaheuristics": {
+      "PCO": {
+        "num_plants": 10,
+        "iterations": 50
+      },
+      "PSO": {
+        "num_particles": 30,
+        "iterations": 50,
+        "inertia_weight": 0.5
+      },
+      "GWO": {
+        "num_wolves": 20,
+        "iterations": 50
+      }
+    },
+    "datacenter": [
+      {
+        "cpu_core": 20,
+        "cpu_speed": 2867,
+        "memory": 64,
+        "vms": {
+            "count": 5
+        }
+      }
+    ]
+  }
+  
