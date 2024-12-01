@@ -1,6 +1,6 @@
 {
     "task_queue": {
-      "directory": "assets/dataset/list"
+      "directory": "assets/dataset/planetlab-workload-traces-master/20110303"
     },
     "load_balancer": {
       "default_algorithm": "PCO"

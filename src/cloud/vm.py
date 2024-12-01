@@ -14,6 +14,16 @@ class VM:
         self.memory_usage = 0  # Memory currently in use
         self.tasks = []  # List of tasks assigned to this VM
 
+    def cpu_usage_percent(self):
+        cpu_usage = 0
+        for task in self.tasks:
+            if task.is_complete():
+                self.tasks.remove(task)
+            else:
+                cpu_usage += task.cpu_demand
+
+        return cpu_usage
+
     def free_cpu_percent(self):
         """
         Calculates the free CPU percentage after accounting for task demands.
@@ -21,15 +31,9 @@ class VM:
         Returns:
             float: Free CPU percentage.
         """
-        cpu_usage = 0
-        for task in self.tasks:
-            if task.is_complete():
-                self.memory_usage -= task.memory_demand
-                self.tasks.remove(task)
-            else:
-                cpu_usage += task.cpu_demand
+        cpu_usage = self.cpu_usage_percent()
 
-        return (self.cpu_core - cpu_usage) / self.cpu_core
+        return self.max_cpu_utilization - cpu_usage
 
     def free_memory(self):
         """
@@ -51,7 +55,7 @@ class VM:
             bool: True if allocation was successful, False otherwise.
         """
         allocated = False
-        if (self.free_cpu_percent() * self.cpu_core >= task.cpu_demand and
+        if (self.free_cpu_percent() >= task.cpu_demand and
                 self.free_memory() >= task.memory_demand):
             self.memory_usage += task.memory_demand
             self.tasks.append(task)
@@ -61,7 +65,7 @@ class VM:
         return allocated
     
     def show_cpu_utilization(self):
-        print("vm", self.vm_id, self.max_cpu_utilization-self.free_cpu_percent())
+        print("vm", self.vm_id, self.cpu_usage_percent())
 
     def monitor_resources(self):
         """

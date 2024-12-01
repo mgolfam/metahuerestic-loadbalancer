@@ -1,3 +1,4 @@
+import time
 import threading
 import json
 from src.config.parser import ConfigParser
@@ -30,15 +31,23 @@ class LoadBalancer:
         for pm in self.pm_list:
             self.vms.extend(pm.vms)  # Append VMs from the current PM
             
+        # Initialize and start TaskMonitor in a separate thread
+        self.task_monitor_thread = threading.Thread(target=self.run_task_monitor)
+        self.task_monitor_thread.daemon = True  # Ensure it exits when the main program exits
+        self.task_monitor_thread.start()
+            
         self.algorithm_config = algorithm_config
-        
-        self.task_monitor = TaskMonitor(vms=self.vms, update_interval=300)
-        self.task_monitor.run()
-        
         self.algorithms = {
             "PCO": PlantCompetitionOptimization(algorithm_config["PCO"]),
             # Add other algorithms here (e.g., PSO, GWO)
         }
+        
+    def run_task_monitor(self):
+        """
+        Starts the TaskMonitor GUI in a separate thread.
+        """
+        task_monitor = TaskMonitor(vms=self.vms, update_interval=300)  # Pass data queue
+        task_monitor.run()
 
     def balance_load(self, algorithm_name):
         """
@@ -61,20 +70,14 @@ class LoadBalancer:
 
             # Display task-to-VM allocation
             for task, vm_idx in zip(tasks, best_allocation):
-                allocated = self.vms[vm_idx].allocate_task(Task(task, execution_time=15))
+                allocated = self.vms[vm_idx].allocate_task(Task(task, execution_time=5))
                 print(f"Task {task} assigned to VM {vm_idx}", f"allocated {1}".format(allocated))
 
             # Optionally, update VM capacities based on assigned tasks
             # for task, vm_idx in zip(tasks, best_allocation):
                 # self.vms[vm_idx] -= task  # Reduce VM capacity by the task's CPU requirement
-
-            # Display updated VM capacities
-            # print("Updated VM capacities:", self.vms)
-                        # Periodically update TaskMonitor with task assignments and utilization data
-            self.task_monitor.assign_tasks()
-            self.task_monitor.update_table()
-
+                
             # Simulate a delay for task processing
-            time.sleep(2)
+            time.sleep(.1)
 
 
