@@ -14,10 +14,14 @@ class DataBrokerManager:
         
         
         # Load TaskQueue
-        task_queue_dir = ConfigParser.get_config()["task_queue"]["directory"]
+        task_queue_dir = ConfigParser.get_config_dict()["task_queue"]["directory"]
         self.task_queue = TaskQueue(task_queue_dir)
-        self.load_balancer = LoadBalancer(self.task_queue, self.datacenter.pms)
+        
+        conf = ConfigParser.get_config_dict()
+        algorithm_config = conf["metaheuristics"]
+        self.load_balancer = LoadBalancer(self.task_queue, self.datacenter.pms, algorithm_config)
     
     def start(self):
-        pco_config = {"num_plants": 10, "iterations": 50}
-        load_balancer.start(algorithm_name="PCO", algorithm_config=pco_config, batch_size=5)
+        # Run load balancing with metaheuristic algorithms from config
+        for algorithm_name in ["PCO"]:
+            self.load_balancer.balance_load(algorithm_name=algorithm_name)

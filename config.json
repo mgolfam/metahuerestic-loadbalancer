@@ -3,20 +3,22 @@
       "directory": "assets/dataset/list"
     },
     "load_balancer": {
-      "default_algorithm": "PCO",
-      "batch_size": 10
+      "default_algorithm": "PCO"
     },
     "metaheuristics": {
       "PCO": {
+        "batch_size": 10,
         "num_plants": 10,
         "iterations": 50
       },
       "PSO": {
+        "batch_size": 30,
         "num_particles": 30,
         "iterations": 50,
         "inertia_weight": 0.5
       },
       "GWO": {
+        "batch_size": 20,
         "num_wolves": 20,
         "iterations": 50
       }

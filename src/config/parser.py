@@ -58,6 +58,10 @@ class ConfigParser:
     
     def get_config():
         # Load configuration
+        return _config_instance
+    
+    def get_config_dict():
+        # Load configuration
         return _config_instance.as_dict()
     
 def init_config(config_file="config.json"):

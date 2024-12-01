@@ -1,18 +1,20 @@
 import json
 from src.config.parser import ConfigParser
 from src.data_broker.task_queue import TaskQueue
+from src.data_broker.task_monitor import TaskMonitor
+from src.cloud.task import Task
 from src.cloud.pm import PM
 from src.cloud.vm import VM
 from src.algorithms.metaheuristic.pco import PlantCompetitionOptimization
-from src.algorithms.metaheuristic.pso import ParticleSwarmOptimization
-from src.algorithms.metaheuristic.gwo import GreyWolfOptimization
+# from src.algorithms.metaheuristic.pso import ParticleSwarmOptimization
+# from src.algorithms.metaheuristic.gwo import GreyWolfOptimization
 
 class LoadBalancer:
     """
     LoadBalancer class responsible for distributing tasks among available resources.
     """
 
-    def __init__(self, task_queue, pm_list):
+    def __init__(self, task_queue, pm_list, algorithm_config):
         """
         Initializes the LoadBalancer.
 
@@ -22,59 +24,50 @@ class LoadBalancer:
         """
         self.task_queue = task_queue
         self.pm_list = pm_list
+        
+        self.vms = []
+        for pm in self.pm_list:
+            self.vms.extend(pm.vms)  # Append VMs from the current PM
+            
+        self.algorithm_config = algorithm_config
+        
+        self.task_monitor = TaskMonitor(self.pm_vm_structure, update_interval=1000, tasks_per_update=10)
+        
+        self.algorithms = {
+            "PCO": PlantCompetitionOptimization(algorithm_config["PCO"]),
+            # Add other algorithms here (e.g., PSO, GWO)
+        }
 
-    def configure_algorithm(self, algorithm_name, **kwargs):
+    def balance_load(self, algorithm_name):
         """
-        Configures and initializes a metaheuristic algorithm.
+        Balances the load using the specified algorithm.
 
         Args:
-            algorithm_name (str): Name of the algorithm ('PCO', 'PSO', 'GWO').
-            **kwargs: Additional parameters for the algorithm.
-
-        Returns:
-            object: Configured algorithm instance.
+            algorithm_name (str): Name of the algorithm to use for optimization.
         """
-        if algorithm_name == "PCO":
-            return PlantCompetitionOptimization(**kwargs)
-        elif algorithm_name == "PSO":
-            return ParticleSwarmOptimization(**kwargs)
-        elif algorithm_name == "GWO":
-            return GreyWolfOptimization(**kwargs)
-        else:
-            raise ValueError(f"Unknown algorithm: {algorithm_name}")
+        if algorithm_name not in self.algorithms:
+            raise ValueError(f"Algorithm '{algorithm_name}' not found.")
 
-    def balance_load(self, algorithm, batch_size=None):
-        """
-        Balances the load by distributing tasks using the specified algorithm.
+        algorithm = self.algorithms[algorithm_name]
 
-        Args:
-            algorithm (object): Metaheuristic algorithm instance for optimization.
-            batch_size (int, optional): Number of tasks to process at a time. If None, process all tasks.
-        """
-        for file_name, tasks in self.task_queue.stream_work_load(batch_size=batch_size):
+        # Process tasks from the task queue
+        for file_name, tasks in self.task_queue.stream_work_load(self.algorithm_config[algorithm_name]["batch_size"]):
             print(f"Processing tasks from file: {file_name}")
-            for task in tasks:
-                # Use the algorithm to find the best PM and VM
-                best_allocation = algorithm.optimize(self.pm_list, task)
-                if best_allocation:
-                    pm, vm = best_allocation
-                    if vm.allocate_task(cpu_demand=task, memory_demand=1):
-                        print(f"Task with CPU demand {task} assigned to VM on PM {pm.pm_id}.")
-                    else:
-                        print(f"Task with CPU demand {task} could not be allocated.")
-                else:
-                    print(f"No suitable PM or VM found for task {task}.")
 
-    def start(self, algorithm_name, algorithm_config):
-        """
-        Starts the load balancing process with the specified algorithm.
+            # Run the optimization algorithm
+            best_allocation = algorithm.optimize(tasks, self.vms)
 
-        Args:
-            algorithm_name (str): Name of the algorithm to use ('PCO', 'PSO', 'GWO').
-            algorithm_config (dict): Configuration parameters for the algorithm, including batch_size.
-        """
-        print(f"Starting load balancing with algorithm: {algorithm_name}")
-        batch_size = algorithm_config.pop("batch_size", None)
-        algorithm = self.configure_algorithm(algorithm_name, **algorithm_config)
-        self.balance_load(algorithm, batch_size=batch_size)
+            # Display task-to-VM allocation
+            for task, vm_idx in zip(tasks, best_allocation):
+                allocated = self.vms[vm_idx].allocate_task(Task(task, execution_time=15))
+                print(f"Task {task} assigned to VM {vm_idx}", f"allocated {1}".format(allocated))
+
+            # Optionally, update VM capacities based on assigned tasks
+            # for task, vm_idx in zip(tasks, best_allocation):
+                # self.vms[vm_idx] -= task  # Reduce VM capacity by the task's CPU requirement
+
+            # Display updated VM capacities
+            # print("Updated VM capacities:", self.vms)
+            time.sleep(12)
+
 

@@ -51,6 +51,7 @@ class PM:
         """
         Adds a VM to this PM.
         """
+        # self.show_free_resources()
         can_add_vm = self.allocated_resource(vm.cpu_core, vm.memory)
         # self.show_free_resources()
         if can_add_vm:
