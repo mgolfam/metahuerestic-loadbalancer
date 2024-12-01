@@ -40,15 +40,23 @@ class TaskMonitor:
             self.tree.column(col, width=150, anchor="center")
 
         # Frame for CPU utilization summary
-        self.utilization_frame = tk.LabelFrame(self.root, text="CPU Utilization Summary", padx=10, pady=10)
-        self.utilization_frame.pack(fill=tk.X)
+        self.utilization_frame = tk.Frame(self.root)  # Use Frame for multi-line CPU utilization
+        self.utilization_frame.pack(fill=tk.X, pady=10)  # Add vertical padding here to keep things close
 
         # CPU utilization labels
         self.utilization_labels = {}
+        self.row_count = 0  # Keep track of the rows for the labels
+
         for vm in self.vms:
-            label = tk.Label(self.utilization_frame, text=f"{vm.vm_id}: 0", width=20, anchor="w")
+            # Create a new label for each VM's CPU usage in a separate row
+            if self.row_count % 5 == 0:
+                self.utilization_row_frame = tk.Frame(self.utilization_frame)
+                self.utilization_row_frame.pack(fill=tk.X)
+            
+            label = tk.Label(self.utilization_row_frame, text=f"{vm.vm_id}: 0", width=20, anchor="w")
             label.pack(side=tk.LEFT, padx=5)
             self.utilization_labels[vm.vm_id] = label
+            self.row_count += 1
 
         # Start the periodic updates
         self.update_table()
@@ -67,7 +75,8 @@ class TaskMonitor:
             row_values = []
             for vm in self.vms:
                 if i < len(vm.tasks):
-                    val = f"{vm.tasks[i].task_id} {vm.tasks[i].cpu_demand}"
+                    # val = f"{vm.tasks[i].task_id} {vm.tasks[i].cpu_demand}"
+                    val = f"%{vm.tasks[i].cpu_demand}"
                     row_values.append(val)  # Add task ID from each VM
                 else:
                     row_values.append("")  # No task for this row in this VM
