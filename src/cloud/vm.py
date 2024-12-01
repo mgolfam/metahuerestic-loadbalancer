@@ -4,9 +4,10 @@ class VM:
     max_cpu_utilization = 0.9
     vm_counter = 0
 
-    def __init__(self, cpu_core, cpu_speed, memory):
+    def __init__(self, pm_id, cpu_core, cpu_speed, memory):
         VM.vm_counter += 1
         self.vm_id = VM.vm_counter
+        self.pm_id = pm_id
         self.cpu_core = cpu_core
         self.memory = memory
         self.cpu_speed = cpu_speed  # CPU speed in MHz

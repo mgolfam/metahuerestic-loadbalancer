@@ -107,6 +107,7 @@ class PM:
             
         for i in range(vm_numbers):
             vm = VM(
+                pm_id=self.pm_id,
                 cpu_core=cpu_core,
                 cpu_speed=self.cpu_speed,
                 memory=memory,

@@ -1,3 +1,4 @@
+import threading
 import json
 from src.config.parser import ConfigParser
 from src.data_broker.task_queue import TaskQueue
@@ -31,7 +32,8 @@ class LoadBalancer:
             
         self.algorithm_config = algorithm_config
         
-        self.task_monitor = TaskMonitor(self.pm_vm_structure, update_interval=1000, tasks_per_update=10)
+        self.task_monitor = TaskMonitor(vms=self.vms, update_interval=300)
+        self.task_monitor.run()
         
         self.algorithms = {
             "PCO": PlantCompetitionOptimization(algorithm_config["PCO"]),
@@ -68,6 +70,11 @@ class LoadBalancer:
 
             # Display updated VM capacities
             # print("Updated VM capacities:", self.vms)
-            time.sleep(12)
+                        # Periodically update TaskMonitor with task assignments and utilization data
+            self.task_monitor.assign_tasks()
+            self.task_monitor.update_table()
+
+            # Simulate a delay for task processing
+            time.sleep(2)
 
 
