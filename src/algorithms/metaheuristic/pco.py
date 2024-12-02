@@ -18,7 +18,6 @@ class PlantCompetitionOptimization(Metaheuristic):
             config (dict): Configuration dictionary with algorithm-specific parameters.
         """
         super().__init__(config)
-        self.vmax = config.get("vmax", 10)
         self.max_plant_number = config.get("max_plant_number", 1000)
         self.k = config.get("k", 0.1)
         self.teta = np.exp(-1)

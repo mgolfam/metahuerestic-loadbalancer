@@ -8,19 +8,29 @@
     "metaheuristics": {
       "PCO": {
         "batch_size": 10,
+        "max_plant_number": 1000,
         "num_plants": 10,
-        "iterations": 50
+        "iterations": 50,
+        "vmax": 10,
+        "k": 0.1
       },
       "PSO": {
         "batch_size": 30,
         "num_particles": 30,
         "iterations": 50,
-        "inertia_weight": 0.5
+        "inertia_weight": 0.5,
+        "cognitive_weight": 1.5,
+        "social_weight": 1.5,
+        "velocity_clamp": [-1, 1],
+        "convergence_threshold": 1e-6
       },
       "GWO": {
         "batch_size": 20,
         "num_wolves": 20,
-        "iterations": 50
+        "iterations": 50,
+        "a_max": 2,
+        "convergence_threshold": 1e-6,
+        "diversity_preservation": true
       }
     },
     "datacenter": [
