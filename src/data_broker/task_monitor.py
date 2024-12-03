@@ -97,7 +97,10 @@ class TaskMonitor:
         for vm in self.vms:
             # Calculate CPU utilization by summing CPU demands of all tasks in the VM
             total_cpu_usage = sum(task.cpu_demand for task in vm.tasks)  # Directly use the task's cpu_demand
-            self.utilization_labels[vm.vm_id].config(text=f"{total_cpu_usage}")  # Show exact CPU demand for all tasks
+            
+            # Format the utilization to two decimal points
+            self.utilization_labels[vm.vm_id].config(text=f"{total_cpu_usage:.2f}")  # Display as floating point with 2 decimals
+
 
     def run(self):
         """

@@ -84,3 +84,9 @@ class VM:
             "free_cpu_percent":1 - cpu_usage,
             "free_memory_kb": self.free_memory()
         }
+    
+    def calculate_makespan(self):
+        max_end_time = 0
+        for task in vm.tasks:
+            max_end_time = max(max_end_time, task.end_time)
+        return max_end_time

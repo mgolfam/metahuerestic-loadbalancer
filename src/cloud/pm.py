@@ -130,3 +130,9 @@ class PM:
             "Free Memory (GB)": self.free_memory,
             "Free MIPS": self.free_mips
         })
+    
+    def calculate_makespan(self):
+        max_end_time = 0
+        for vm in pm.vms:
+            max_end_time = max(max_end_time, vm.calculate_makespan())
+        return max_end_time

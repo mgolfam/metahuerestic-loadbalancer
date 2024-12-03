@@ -33,6 +33,11 @@ class Datacenter:
         self.pms = [PM(cpu_core=cpu_core, cpu_speed=self.cpu_speed, memory=memory, vm_count=vm_count, vm_cpu=vm_cpu, vm_memory=vm_memory) for _ in range(pm_count)]
         return self.pms
 
+    def calculate_makespan(self):
+        max_end_time = 0
+        for pm in self.pms:
+            max_end_time = max(max_end_time, pm.calculate_makespan())
+        return max_end_time
     
     @staticmethod
     def visualize_datacenter(datacenter):
