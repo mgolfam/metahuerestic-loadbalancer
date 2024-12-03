@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import time
 
+
 class TaskMonitor:
     """
     Task monitoring GUI displaying running tasks on each VM and CPU utilization summary.
@@ -23,6 +24,19 @@ class TaskMonitor:
         self.root = tk.Tk()
         self.root.title("Task Monitoring")
         self.root.geometry("1200x700")
+
+        # Frame for PM utilization summary
+        self.pm_utilization_frame = tk.Frame(self.root)
+        self.pm_utilization_frame.pack(fill=tk.X, pady=5)
+
+        # PM utilization labels
+        self.pm_utilization_labels = {}
+        for vm in self.vms:
+            pm_id = vm.pm_id
+            if pm_id not in self.pm_utilization_labels:
+                label = tk.Label(self.pm_utilization_frame, text=f"PM {pm_id}: 0.00%", width=20, anchor="w")
+                label.pack(side=tk.LEFT, padx=5)
+                self.pm_utilization_labels[pm_id] = label
 
         # Treeview setup
         self.tree = ttk.Treeview(self.root)
@@ -52,14 +66,38 @@ class TaskMonitor:
             if self.row_count % 5 == 0:
                 self.utilization_row_frame = tk.Frame(self.utilization_frame)
                 self.utilization_row_frame.pack(fill=tk.X)
-            
-            label = tk.Label(self.utilization_row_frame, text=f"{vm.vm_id}: 0", width=20, anchor="w")
+
+            label = tk.Label(self.utilization_row_frame, text=f"{vm.vm_id}: 0.00%", width=20, anchor="w")
             label.pack(side=tk.LEFT, padx=5)
             self.utilization_labels[vm.vm_id] = label
             self.row_count += 1
 
         # Start the periodic updates
         self.update_table()
+
+    def calculate_pm_utilization(self):
+        """
+        Calculates the overall utilization for each PM by aggregating the CPU usage
+        of all VMs hosted on the PM.
+
+        Returns:
+            dict: A dictionary with PM IDs as keys and their utilization as values.
+        """
+        pm_utilization = {}
+        for vm in self.vms:
+            pm_id = vm.pm_id
+            if pm_id not in pm_utilization:
+                pm_utilization[pm_id] = 0
+            pm_utilization[pm_id] += sum(task.cpu_demand for task in vm.tasks)
+        return pm_utilization
+
+    def update_pm_utilization(self):
+        """
+        Updates the PM utilization labels at the top of the button section.
+        """
+        pm_utilization = self.calculate_pm_utilization()
+        for pm_id, utilization in pm_utilization.items():
+            self.pm_utilization_labels[pm_id].config(text=f"PM {pm_id}: {utilization:.2f}%")
 
     def update_table(self):
         """
@@ -75,8 +113,7 @@ class TaskMonitor:
             row_values = []
             for vm in self.vms:
                 if i < len(vm.tasks):
-                    # val = f"{vm.tasks[i].task_id} {vm.tasks[i].cpu_demand}"
-                    val = f"%{vm.tasks[i].cpu_demand}"
+                    val = f"%{vm.tasks[i].cpu_demand:.2f}"
                     row_values.append(val)  # Add task ID from each VM
                 else:
                     row_values.append("")  # No task for this row in this VM
@@ -85,6 +122,9 @@ class TaskMonitor:
 
         # Update CPU utilization for each VM
         self.calculate_cpu_utilization()
+
+        # Update PM utilization
+        self.update_pm_utilization()
 
         # Schedule the next update
         self.root.after(self.update_interval, self.update_table)
@@ -97,14 +137,12 @@ class TaskMonitor:
         for vm in self.vms:
             # Calculate CPU utilization by summing CPU demands of all tasks in the VM
             total_cpu_usage = sum(task.cpu_demand for task in vm.tasks)  # Directly use the task's cpu_demand
-            
-            # Format the utilization to two decimal points
-            self.utilization_labels[vm.vm_id].config(text=f"{total_cpu_usage:.2f}")  # Display as floating point with 2 decimals
 
+            # Format the utilization to two decimal points
+            self.utilization_labels[vm.vm_id].config(text=f"{total_cpu_usage:.2f}%")
 
     def run(self):
         """
         Runs the Tkinter main loop.
         """
         self.root.mainloop()
-
