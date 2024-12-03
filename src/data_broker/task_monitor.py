@@ -84,20 +84,26 @@ class TaskMonitor:
             dict: A dictionary with PM IDs as keys and their utilization as values.
         """
         pm_utilization = {}
+        pm_vm_count = {}
         for vm in self.vms:
             pm_id = vm.pm_id
             if pm_id not in pm_utilization:
                 pm_utilization[pm_id] = 0
             pm_utilization[pm_id] += sum(task.cpu_demand for task in vm.tasks)
-        return pm_utilization
+            
+            if pm_id not in pm_vm_count:
+                pm_vm_count[pm_id] = 0
+            pm_vm_count[pm_id] += 1
+        return (pm_utilization, pm_vm_count)
 
     def update_pm_utilization(self):
         """
         Updates the PM utilization labels at the top of the button section.
         """
-        pm_utilization = self.calculate_pm_utilization()
+        pm_utilization, pm_vm_count = self.calculate_pm_utilization()
         for pm_id, utilization in pm_utilization.items():
-            self.pm_utilization_labels[pm_id].config(text=f"PM {pm_id}: {utilization:.2f}%")
+            pmu = utilization * 100 / pm_vm_count[pm_id]
+            self.pm_utilization_labels[pm_id].config(text=f"PM {pm_id}: {pmu:.2f}%")
 
     def update_table(self):
         """
@@ -113,12 +119,13 @@ class TaskMonitor:
             row_values = []
             for vm in self.vms:
                 if i < len(vm.tasks):
-                    val = f"%{vm.tasks[i].cpu_demand:.2f}"
+                    cpud = vm.tasks[i].cpu_demand * 100
+                    val = f"%{cpud:.2f}"
                     row_values.append(val)  # Add task ID from each VM
                 else:
                     row_values.append("")  # No task for this row in this VM
 
-            self.tree.insert("", "end", text=f"Row {i+1}", values=row_values)
+            self.tree.insert("", "end", text=f"{i+1}", values=row_values)
 
         # Update CPU utilization for each VM
         self.calculate_cpu_utilization()
@@ -139,7 +146,8 @@ class TaskMonitor:
             total_cpu_usage = sum(task.cpu_demand for task in vm.tasks)  # Directly use the task's cpu_demand
 
             # Format the utilization to two decimal points
-            self.utilization_labels[vm.vm_id].config(text=f"{total_cpu_usage:.2f}%")
+            total_cpu_usage_percent = total_cpu_usage * 100
+            self.utilization_labels[vm.vm_id].config(text=f"vm{vm.vm_id:2.0f}-{total_cpu_usage_percent:.2f}%")
 
     def run(self):
         """

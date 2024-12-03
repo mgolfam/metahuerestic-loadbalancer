@@ -78,6 +78,6 @@ class LoadBalancer:
                 # self.vms[vm_idx] -= task  # Reduce VM capacity by the task's CPU requirement
                 
             # Simulate a delay for task processing
-            time.sleep(.1)
+            time.sleep(.09)
 
 
