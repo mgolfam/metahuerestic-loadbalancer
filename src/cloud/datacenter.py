@@ -1,52 +1,90 @@
 from src.cloud.pm import PM
-
-import matplotlib.pyplot as plt
+from src.cloud.vm import VM
 
 class Datacenter:
     dc_count = 0
-    # because of pms are identical we use the same resource for all of theme.
-    def __init__(self, pm_count, cpu_core, cpu_speed, memory, vm_count=0, vm_cpu=0, vm_memory=0):
-        Datacenter.dc_count += 1
-        self.cpu_speed = cpu_speed
-        self.datacenter_id = Datacenter.dc_count
-        self.pms = []
-        
-        if pm_count > 0:
-            self.generate_pms(pm_count=pm_count, cpu_core=cpu_core, memory=memory, vm_count=vm_count, vm_cpu=vm_cpu, vm_memory=vm_memory)
 
-    def pm_count(self):
-        return len(self.pms)
-
-    def generate_pms(self, pm_count, cpu_core, memory, vm_count=0, vm_cpu=0, vm_memory=0):
+    def __init__(self, config):
         """
-        Generates PMs for the datacenter.
+        Initializes the datacenter with configurations.
 
         Args:
-            pm_count (int): Number of PMs to create.
-            cpu_core (int): CPU cores for each PM.
-            cpu_speed (int): CPU speed for each PM.
-            memory (int): Memory for each PM.
-
-        Returns:
-            list: List of PM objects.
+            config (dict): Configuration dictionary containing PM and VM settings.
         """
-        self.pms = [PM(cpu_core=cpu_core, cpu_speed=self.cpu_speed, memory=memory, vm_count=vm_count, vm_cpu=vm_cpu, vm_memory=vm_memory) for _ in range(pm_count)]
-        return self.pms
+        Datacenter.dc_count += 1
+        self.datacenter_id = Datacenter.dc_count
+        self.pms = []
+        self.config = config
+
+        # Generate PMs based on config
+        self.generate_pms()
+
+    def pm_count(self):
+        """Returns the number of PMs in the datacenter."""
+        return len(self.pms)
+
+    def generate_pms(self):
+        """
+        Generates PMs based on the provided configuration. Supports both heterogeneous and homogeneous setups.
+        """
+        if "pm_configurations" in self.config:
+            # Generate heterogeneous PMs
+            for pm_config in self.config["pm_configurations"]:
+                pm = PM(
+                    cpu_core=pm_config["cpu_core"],
+                    cpu_speed=pm_config["cpu_speed"],
+                    memory=pm_config["memory"]
+                )
+                for vm_config in pm_config["vms"]:
+                    vm = VM(
+                        pm_id=pm.pm_id,
+                        cpu_core=vm_config["cpu_core"],
+                        cpu_speed=pm_config["cpu_speed"],
+                        memory=vm_config["memory"]
+                    )
+                    pm.add_vm(vm)
+                self.pms.append(pm)
+        elif "default_pm_config" in self.config:
+            # Generate homogeneous PMs
+            default_config = self.config["default_pm_config"]
+            for _ in range(default_config["pm_count"]):
+                pm = PM(
+                    cpu_core=default_config["cpu_core"],
+                    cpu_speed=default_config["cpu_speed"],
+                    memory=default_config["memory"]
+                )
+                for vm_config in default_config["vms"]:
+                    vm = VM(
+                        pm_id=pm.pm_id,
+                        cpu_core=vm_config["cpu_core"],
+                        cpu_speed=default_config["cpu_speed"],
+                        memory=vm_config["memory"]
+                    )
+                    pm.add_vm(vm)
+                self.pms.append(pm)
 
     def calculate_makespan(self):
+        """
+        Calculates the makespan for the datacenter.
+
+        Returns:
+            float: The makespan (maximum end time across all PMs).
+        """
         max_end_time = 0
         for pm in self.pms:
             max_end_time = max(max_end_time, pm.calculate_makespan())
         return max_end_time
-    
+
     @staticmethod
     def visualize_datacenter(datacenter):
         """
-        Visualizes the information of the data center, including PMs, VMs, and resources.
+        Visualizes the information of the datacenter, including PMs, VMs, and resources.
 
         Args:
-            datacenter (list): List of PMs in the data center.
+            datacenter (Datacenter): Datacenter instance to visualize.
         """
+        import matplotlib.pyplot as plt
+
         pm_ids = [pm.pm_id for pm in datacenter.pms]
         free_cpu_cores = [pm.free_cpu_core for pm in datacenter.pms]
         free_memory = [pm.free_memory for pm in datacenter.pms]

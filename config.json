@@ -1,47 +1,86 @@
 {
-    "task_queue": {
-      "directory": "assets/dataset/planetlab-workload-traces-master/20110303"
+  "task_queue": {
+    "directory": "assets/dataset/planetlab-workload-traces-master/20110303",
+    "task_count": 1000,
+    "task_batch_size": 50
+  },
+  "load_balancer": {
+    "default_algorithm": "PCO",
+    "overload_threshold": 0.9,
+    "underload_threshold": 0.2
+  },
+  "metaheuristics": {
+    "PCO": {
+      "batch_size": 10,
+      "max_plant_number": 1000,
+      "num_plants": 10,
+      "iterations": 50,
+      "vmax": 10,
+      "k": 0.1,
+      "convergence_threshold": 1e-5
     },
-    "load_balancer": {
-      "default_algorithm": "PCO"
+    "PSO": {
+      "batch_size": 30,
+      "num_particles": 30,
+      "iterations": 50,
+      "inertia_weight": 0.5,
+      "cognitive_weight": 1.5,
+      "social_weight": 1.5,
+      "velocity_clamp": [-1, 1],
+      "convergence_threshold": 1e-6
     },
-    "metaheuristics": {
-      "PCO": {
-        "batch_size": 10,
-        "max_plant_number": 1000,
-        "num_plants": 10,
-        "iterations": 50,
-        "vmax": 10,
-        "k": 0.1
-      },
-      "PSO": {
-        "batch_size": 30,
-        "num_particles": 30,
-        "iterations": 50,
-        "inertia_weight": 0.5,
-        "cognitive_weight": 1.5,
-        "social_weight": 1.5,
-        "velocity_clamp": [-1, 1],
-        "convergence_threshold": 1e-6
-      },
-      "GWO": {
-        "batch_size": 20,
-        "num_wolves": 20,
-        "iterations": 50,
-        "a_max": 2,
-        "convergence_threshold": 1e-6,
-        "diversity_preservation": true
-      }
-    },
-    "datacenter": [
+    "GWO": {
+      "batch_size": 20,
+      "num_wolves": 20,
+      "iterations": 50,
+      "a_max": 2,
+      "convergence_threshold": 1e-6,
+      "diversity_preservation": true
+    }
+  },
+  "datacenter": {
+    "pm_configurations": [
       {
         "cpu_core": 20,
         "cpu_speed": 2867,
         "memory": 64,
-        "vms": {
-            "count": 5
-        }
+        "vms": [
+          {"cpu_core": 4, "memory": 8},
+          {"cpu_core": 4, "memory": 8},
+          {"cpu_core": 4, "memory": 8},
+          {"cpu_core": 4, "memory": 8},
+          {"cpu_core": 4, "memory": 8}
+        ]
+      },
+      {
+        "cpu_core": 32,
+        "cpu_speed": 2400,
+        "memory": 128,
+        "vms": [
+          {"cpu_core": 8, "memory": 16},
+          {"cpu_core": 8, "memory": 16},
+          {"cpu_core": 8, "memory": 16},
+          {"cpu_core": 8, "memory": 16},
+          {"cpu_core": 8, "memory": 16},
+          {"cpu_core": 8, "memory": 16},
+          {"cpu_core": 8, "memory": 16},
+          {"cpu_core": 8, "memory": 16},
+          {"cpu_core": 8, "memory": 16},
+          {"cpu_core": 8, "memory": 16}
+        ]
       }
-    ]
+    ],
+    "default_pm_config": {
+      "pm_count": 10,
+      "cpu_core": 16,
+      "cpu_speed": 3000,
+      "memory": 64,
+      "vms": [
+        {"cpu_core": 4, "memory": 16},
+        {"cpu_core": 4, "memory": 16},
+        {"cpu_core": 4, "memory": 16},
+        {"cpu_core": 4, "memory": 16}
+      ]
+    }
   }
-  
+}
