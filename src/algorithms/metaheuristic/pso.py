@@ -1,7 +1,5 @@
-import random
 import numpy as np
 from src.algorithms.metaheuristic.metaheuristic_abstract import Metaheuristic
-from src.cloud.task import Task
 
 class ParticleSwarmOptimization(Metaheuristic):
     """
@@ -9,129 +7,73 @@ class ParticleSwarmOptimization(Metaheuristic):
     """
 
     def __init__(self, config):
-        """
-        Initializes the PSO algorithm.
-
-        Args:
-            config (dict): Configuration dictionary with algorithm-specific parameters.
-        """
         super().__init__(config)
-        self.num_particles = config.get("num_particles", 100)
+        self.num_particles = config.get("num_particles", 30)
+        self.max_iterations = config.get("iterations", 50)
         self.inertia_weight = config.get("inertia_weight", 0.5)
         self.cognitive_weight = config.get("cognitive_weight", 1.5)
         self.social_weight = config.get("social_weight", 1.5)
-        self.best_fitness = []
+        self.velocity_clamp = config.get("velocity_clamp", [-1, 1])
+        self.convergence_threshold = config.get("convergence_threshold", 1e-6)
 
     def initialize_population(self, tasks, vms):
-        """
-        Initializes a population of particles (task-to-VM allocations).
-
-        Args:
-            tasks (list): List of CPU utilization tasks.
-            vms (list): List of VMs with their free CPU capacities.
-
-        Returns:
-            list: Initial population of task-to-VM allocations and velocities.
-        """
-        population = []
-        velocities = []
-        for _ in range(self.num_particles):
-            allocation = np.random.choice(range(len(vms)), size=len(tasks))
-            velocity = np.zeros_like(allocation)  # Initialize velocity to zero
-            population.append(allocation)
-            velocities.append(velocity)
-        return population, velocities
+        positions = np.random.randint(0, len(vms), size=(self.num_particles, len(tasks)))
+        velocities = np.random.uniform(
+            self.velocity_clamp[0], self.velocity_clamp[1], size=(self.num_particles, len(tasks))
+        )
+        return positions, velocities
 
     def evaluate_fitness(self, population, tasks, vms):
-        """
-        Evaluates the fitness of each particle in the population.
-
-        Args:
-            population (list): List of particle allocations.
-            tasks (list): List of CPU utilization tasks.
-            vms (list): List of VMs with their free CPU capacities.
-
-        Returns:
-            list: Fitness scores for each particle.
-        """
         fitness_scores = []
         for allocation in population:
-            vm_loads = [0] * len(vms)
-            for task, vm_idx in zip(tasks, allocation):
-                vm_loads[vm_idx] += task
+            vm_utilization = [0] * len(vms)
+            for task_idx, vm_idx in enumerate(allocation):
+                task_cpu = tasks[task_idx] if isinstance(tasks[task_idx], (int, float)) else tasks[task_idx].cpu
+                vm_utilization[vm_idx] += task_cpu
 
-            # Calculate fitness: Penalize overloaded VMs
-            overload_penalty = sum(
-                max(0, load - vms[vm_idx].free_cpu_percent() * vms[vm_idx].cpu_core)
-                for vm_idx, load in enumerate(vm_loads)
-            )
-            fitness = -overload_penalty  # Minimize overload
+            ideal_load = sum(vm_utilization) / len(vms)
+            fitness = sum((util - ideal_load) ** 2 for util in vm_utilization)
             fitness_scores.append(fitness)
-        return fitness_scores
+        return np.array(fitness_scores)
 
-    def update_population(self, population, velocities, fitness_scores, best_positions, tasks, vms):
-        """
-        Updates the population based on fitness scores and particle velocities.
-
-        Args:
-            population (list): List of particle allocations.
-            velocities (list): List of particle velocities.
-            fitness_scores (list): Fitness scores of the population.
-            best_positions (list): Best position for each particle.
-        """
-        global_best_position = max(zip(fitness_scores, population), key=lambda x: x[0])[1]
-        for i in range(len(population)):
-            # Update particle velocity
-            r1 = np.random.rand(len(population[i]))
-            r2 = np.random.rand(len(population[i]))
-
+    def update_population(self, positions, velocities, personal_best_positions, global_best_position):
+        for i in range(self.num_particles):
+            r1, r2 = np.random.random(), np.random.random()
             velocities[i] = (
-                self.inertia_weight * velocities[i] +
-                self.cognitive_weight * r1 * (best_positions[i] - population[i]) +
-                self.social_weight * r2 * (global_best_position - population[i])
+                self.inertia_weight * velocities[i]
+                + self.cognitive_weight * r1 * (personal_best_positions[i] - positions[i])
+                + self.social_weight * r2 * (global_best_position - positions[i])
             )
+            velocities[i] = np.clip(velocities[i], *self.velocity_clamp)
 
-            # Update particle position (task-to-VM allocation)
-            population[i] += velocities[i].astype(int)
-            population[i] = np.clip(population[i], 0, len(vms) - 1)  # Ensure positions are valid
+            # Update positions with explicit casting to int
+            positions[i] = np.clip(positions[i] + velocities[i], 0, len(positions[0]) - 1).astype(int)
 
-        # Update the best positions for each particle
-        for i in range(len(population)):
-            if fitness_scores[i] > self.evaluate_fitness([best_positions[i]], tasks, vms)[0]:
-                best_positions[i] = population[i]
+        return positions, velocities
 
     def optimize(self, tasks, vms):
-        """
-        Runs the PSO algorithm to optimize task allocation.
+        positions, velocities = self.initialize_population(tasks, vms)
+        personal_best_positions = np.copy(positions)
+        personal_best_scores = self.evaluate_fitness(positions, tasks, vms)
+        global_best_position = personal_best_positions[np.argmin(personal_best_scores)]
+        global_best_score = min(personal_best_scores)
 
-        Args:
-            tasks (list): List of CPU utilization tasks.
-            vms (list): List of VMs with their free CPU capacities.
+        for iteration in range(self.max_iterations):
+            positions, velocities = self.update_population(
+                positions, velocities, personal_best_positions, global_best_position
+            )
+            fitness_scores = self.evaluate_fitness(positions, tasks, vms)
 
-        Returns:
-            list: Optimized task-to-VM mapping.
-        """
-        population, velocities = self.initialize_population(tasks, vms)
-        best_positions = population[:]  # Initial best positions are the same as the population
+            for i in range(self.num_particles):
+                if fitness_scores[i] < personal_best_scores[i]:
+                    personal_best_scores[i] = fitness_scores[i]
+                    personal_best_positions[i] = positions[i]
 
-        for _ in range(self.config.get("iterations", 50)):
-            fitness_scores = self.evaluate_fitness(population, tasks, vms)
-            self.update_population(population, velocities, fitness_scores, best_positions, tasks, vms)
+            if min(fitness_scores) < global_best_score:
+                global_best_score = min(fitness_scores)
+                global_best_position = positions[np.argmin(fitness_scores)]
 
-            # Track best fitness
-            best_fitness = max(fitness_scores)
-            self.best_fitness.append(best_fitness)
+            if global_best_score < self.convergence_threshold:
+                break
 
-        # Return the best solution
-        best_solution_idx = np.argmax(fitness_scores)
-        return population[best_solution_idx]
-
-    def plot_convergence(self):
-        """
-        Plots the convergence of the algorithm.
-        """
-        plt.plot(self.best_fitness, 'b*-', linewidth=1, markeredgecolor='r', markersize=5)
-        plt.xlabel('Iteration')
-        plt.ylabel('Fitness Value')
-        plt.title("PSO Algorithm's Convergence")
-        plt.show()
+        return global_best_position

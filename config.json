@@ -5,7 +5,7 @@
     "task_batch_size": 50
   },
   "load_balancer": {
-    "default_algorithm": "GWO",
+    "default_algorithm": "PSO",
     "overload_threshold": 0.9,
     "underload_threshold": 0.2
   },
@@ -20,8 +20,8 @@
       "convergence_threshold": 1e-5
     },
     "PSO": {
-      "batch_size": 30,
-      "num_particles": 30,
+      "batch_size": 50,
+      "num_particles": 50,
       "iterations": 50,
       "inertia_weight": 0.5,
       "cognitive_weight": 1.5,
