@@ -1,6 +1,5 @@
 import numpy as np
 from src.algorithms.metaheuristic.metaheuristic_abstract import Metaheuristic
-from src.cloud.task import Task
 
 class GrayWolfOptimization(Metaheuristic):
     """
@@ -16,138 +15,114 @@ class GrayWolfOptimization(Metaheuristic):
         """
         super().__init__(config)
         self.num_wolves = config.get("num_wolves", 100)
-        self.a_max = config.get("a_max", 2)  # Linearly decreasing parameter
-        self.best_fitness = []
+        self.a_max = config.get("a_max", 2)
+        self.max_iterations = config.get("iterations", 50)
+        self.convergence_threshold = config.get("convergence_threshold", 1e-6)
 
     def initialize_population(self, tasks, vms):
         """
-        Initializes the population of gray wolves (task-to-VM allocations).
+        Initializes the population of wolves (task-to-VM allocations).
 
         Args:
-            tasks (list): List of CPU utilization tasks.
-            vms (list): List of VMs with their free CPU capacities.
+            tasks (list): List of tasks.
+            vms (list): List of VMs.
 
         Returns:
-            list: Initial population of task-to-VM allocations.
+            np.ndarray: Initial population as a matrix of size (num_wolves, len(tasks)).
         """
-        population = []
-        for _ in range(self.num_wolves):
-            allocation = np.random.choice(range(len(vms)), size=len(tasks))
-            population.append(allocation)
-        return population
+        return np.random.randint(0, len(vms), size=(self.num_wolves, len(tasks)))
 
     def evaluate_fitness(self, population, tasks, vms):
         """
-        Evaluates the fitness of each wolf in the population.
+        Evaluates the fitness of the population.
 
         Args:
-            population (list): List of wolf allocations.
-            tasks (list): List of CPU utilization tasks.
-            vms (list): List of VMs with their free CPU capacities.
+            population (np.ndarray): Current population of wolves.
+            tasks (list): List of tasks.
+            vms (list): List of VMs.
 
         Returns:
-            list: Fitness scores for each wolf.
+            np.ndarray: Fitness values for the population.
         """
         fitness_scores = []
         for allocation in population:
-            vm_loads = [0] * len(vms)
-            for task, vm_idx in zip(tasks, allocation):
-                vm_loads[vm_idx] += task
+            vm_utilization = [0] * len(vms)
+            for task_idx, vm_idx in enumerate(allocation):
+                task_cpu = tasks[task_idx] if isinstance(tasks[task_idx], (int, float)) else tasks[task_idx].cpu
+                vm_utilization[vm_idx] += task_cpu
 
-            # Calculate fitness: Penalize overloaded VMs
-            overload_penalty = sum(
-                max(0, load - vms[vm_idx].free_cpu_percent() * vms[vm_idx].cpu_core)
-                for vm_idx, load in enumerate(vm_loads)
-            )
-            fitness = -overload_penalty  # Minimize overload
+            ideal_load = sum(vm_utilization) / len(vms)
+            fitness = sum((util - ideal_load) ** 2 for util in vm_utilization)
             fitness_scores.append(fitness)
-        return fitness_scores
+        return np.array(fitness_scores)
 
-    def update_population(self, population, fitness_scores, tasks, vms, iteration, max_iterations):
+    def update_population(self, population, fitness_scores, tasks, vms, iteration):
         """
-        Updates the population based on the positions of alpha, beta, and delta wolves.
+        Updates the population based on the GWO logic.
 
         Args:
-            population (list): List of wolf allocations.
-            fitness_scores (list): Fitness scores of the population.
-            tasks (list): List of CPU utilization tasks.
-            vms (list): List of VMs with their free CPU capacities.
+            population (np.ndarray): Current population of wolves.
+            fitness_scores (np.ndarray): Fitness values for the population.
+            tasks (list): List of tasks.
+            vms (list): List of VMs.
             iteration (int): Current iteration number.
-            max_iterations (int): Total number of iterations.
+
+        Returns:
+            np.ndarray: Updated population.
         """
+        a = self.a_max * (1 - iteration / self.max_iterations)
+
         # Identify alpha, beta, and delta wolves
-        sorted_indices = np.argsort(fitness_scores)[::-1]
-        alpha, beta, delta = (population[sorted_indices[0]], 
-                              population[sorted_indices[1]], 
-                              population[sorted_indices[2]])
+        sorted_indices = np.argsort(fitness_scores)
+        alpha, beta, delta = population[sorted_indices[0]], population[sorted_indices[1]], population[sorted_indices[2]]
 
-        a = self.a_max * (1 - iteration / max_iterations)  # Linearly decreasing parameter
+        new_population = np.copy(population)
+        for i, wolf in enumerate(population):
+            for j in range(len(tasks)):
+                r1, r2 = np.random.random(), np.random.random()
+                A1, C1 = 2 * a * r1 - a, 2 * r2
+                D_alpha = abs(C1 * alpha[j] - wolf[j])
+                X1 = alpha[j] - A1 * D_alpha
 
-        for i in range(len(population)):
-            wolf = population[i]
-            updated_wolf = np.zeros_like(wolf)
+                r1, r2 = np.random.random(), np.random.random()
+                A2, C2 = 2 * a * r1 - a, 2 * r2
+                D_beta = abs(C2 * beta[j] - wolf[j])
+                X2 = beta[j] - A2 * D_beta
 
-            for d in range(len(wolf)):
-                # Compute attraction toward alpha
-                r1, r2 = np.random.rand(), np.random.rand()
-                A1 = 2 * a * r1 - a
-                C1 = 2 * r2
-                D_alpha = abs(C1 * alpha[d] - wolf[d])
-                X1 = alpha[d] - A1 * D_alpha
+                r1, r2 = np.random.random(), np.random.random()
+                A3, C3 = 2 * a * r1 - a, 2 * r2
+                D_delta = abs(C3 * delta[j] - wolf[j])
+                X3 = delta[j] - A3 * D_delta
 
-                # Compute attraction toward beta
-                r1, r2 = np.random.rand(), np.random.rand()
-                A2 = 2 * a * r1 - a
-                C2 = 2 * r2
-                D_beta = abs(C2 * beta[d] - wolf[d])
-                X2 = beta[d] - A2 * D_beta
+                # Update wolf position
+                new_population[i][j] = (X1 + X2 + X3) / 3
 
-                # Compute attraction toward delta
-                r1, r2 = np.random.rand(), np.random.rand()
-                A3 = 2 * a * r1 - a
-                C3 = 2 * r2
-                D_delta = abs(C3 * delta[d] - wolf[d])
-                X3 = delta[d] - A3 * D_delta
-
-                # Update position based on average
-                updated_wolf[d] = (X1 + X2 + X3) / 3
-
-            # Clip to valid task-to-VM allocations
-            updated_wolf = np.clip(updated_wolf.astype(int), 0, len(vms) - 1)
-            population[i] = updated_wolf
+        return np.clip(new_population, 0, len(vms) - 1).astype(int)
 
     def optimize(self, tasks, vms):
         """
-        Runs the GWO algorithm to optimize task allocation.
+        Runs the GWO optimization.
 
         Args:
-            tasks (list): List of CPU utilization tasks.
-            vms (list): List of VMs with their free CPU capacities.
+            tasks (list): List of tasks.
+            vms (list): List of VMs.
 
         Returns:
-            list: Optimized task-to-VM mapping.
+            np.ndarray: Best allocation found.
         """
         population = self.initialize_population(tasks, vms)
-        max_iterations = self.config.get("iterations", 50)
+        best_fitness = float('inf')
+        best_allocation = None
 
-        for iteration in range(max_iterations):
+        for iteration in range(self.max_iterations):
             fitness_scores = self.evaluate_fitness(population, tasks, vms)
-            self.update_population(population, fitness_scores, tasks, vms, iteration, max_iterations)
+            if min(fitness_scores) < best_fitness:
+                best_fitness = min(fitness_scores)
+                best_allocation = population[np.argmin(fitness_scores)]
 
-            # Track best fitness
-            best_fitness = max(fitness_scores)
-            self.best_fitness.append(best_fitness)
+            if best_fitness < self.convergence_threshold:
+                break
 
-        # Return the best solution
-        best_solution_idx = np.argmax(fitness_scores)
-        return population[best_solution_idx]
+            population = self.update_population(population, fitness_scores, tasks, vms, iteration)
 
-    def plot_convergence(self):
-        """
-        Plots the convergence of the algorithm.
-        """
-        plt.plot(self.best_fitness, 'b*-', linewidth=1, markeredgecolor='r', markersize=5)
-        plt.xlabel('Iteration')
-        plt.ylabel('Fitness Value')
-        plt.title("GWO Algorithm's Convergence")
-        plt.show()
+        return best_allocation

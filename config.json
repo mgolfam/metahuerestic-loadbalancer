@@ -30,8 +30,8 @@
       "convergence_threshold": 1e-6
     },
     "GWO": {
-      "batch_size": 100,
-      "num_wolves": 100,
+      "batch_size": 50,
+      "num_wolves": 50,
       "iterations": 50,
       "a_max": 2,
       "convergence_threshold": 1e-6,

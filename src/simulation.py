@@ -7,7 +7,7 @@ def init_datacenter():
     # dc = Datacenter(5, 20, 2.8*1024, 64, 5)
     config = ConfigParser.get_config()
     dc = Datacenter(config.get("datacenter"))
-    Datacenter.visualize_datacenter(dc)
+    # Datacenter.visualize_datacenter(dc)
     return dc
     
 def init_data_broker(datacenter):
