@@ -22,6 +22,7 @@ class DataBrokerManager:
         self.load_balancer = LoadBalancer(self.task_queue, self.datacenter.pms, algorithm_config)
     
     def start(self):
+        loadbalancer_config = ConfigParser.get_config_dict()
         # Run load balancing with metaheuristic algorithms from config
-        for algorithm_name in ["PCO"]:
-            self.load_balancer.balance_load(algorithm_name=algorithm_name)
+        # for algorithm_name in []:
+        self.load_balancer.balance_load(algorithm_name=loadbalancer_config["load_balancer"]["default_algorithm"])

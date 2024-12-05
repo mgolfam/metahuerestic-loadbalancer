@@ -8,8 +8,8 @@ from src.cloud.task import Task
 from src.cloud.pm import PM
 from src.cloud.vm import VM
 from src.algorithms.metaheuristic.pco import PlantCompetitionOptimization
-# from src.algorithms.metaheuristic.pso import ParticleSwarmOptimization
-# from src.algorithms.metaheuristic.gwo import GreyWolfOptimization
+from src.algorithms.metaheuristic.pso import ParticleSwarmOptimization
+from src.algorithms.metaheuristic.gwo import GrayWolfOptimization
 
 class LoadBalancer:
     """
@@ -39,8 +39,10 @@ class LoadBalancer:
         self.algorithm_config = algorithm_config
         self.algorithms = {
             "PCO": PlantCompetitionOptimization(algorithm_config["PCO"]),
-            # Add other algorithms here (e.g., PSO, GWO)
+            "PSO": ParticleSwarmOptimization(algorithm_config["PSO"]),
+            "GWO": GrayWolfOptimization(algorithm_config["GWO"]),
         }
+
         
     def run_task_monitor(self):
         """

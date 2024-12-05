@@ -5,15 +5,15 @@
     "task_batch_size": 50
   },
   "load_balancer": {
-    "default_algorithm": "PCO",
+    "default_algorithm": "GWO",
     "overload_threshold": 0.9,
     "underload_threshold": 0.2
   },
   "metaheuristics": {
     "PCO": {
-      "batch_size": 10,
+      "batch_size": 50,
       "max_plant_number": 1000,
-      "num_plants": 10,
+      "num_plants": 50,
       "iterations": 50,
       "vmax": 10,
       "k": 0.1,
@@ -30,8 +30,8 @@
       "convergence_threshold": 1e-6
     },
     "GWO": {
-      "batch_size": 20,
-      "num_wolves": 20,
+      "batch_size": 100,
+      "num_wolves": 100,
       "iterations": 50,
       "a_max": 2,
       "convergence_threshold": 1e-6,
