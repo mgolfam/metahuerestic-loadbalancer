@@ -47,11 +47,11 @@ class TaskMonitor:
         self.tree["columns"] = self.columns
 
         # Format columns
-        self.tree.heading("#0", text="Task ID")
-        self.tree.column("#0", width=100, anchor="center")
+        self.tree.heading("#0", text="Task Row")
+        self.tree.column("#0", width=60, anchor="center")
         for col in self.columns:
             self.tree.heading(col, text=col)
-            self.tree.column(col, width=150, anchor="center")
+            self.tree.column(col, width=20, anchor="center")
 
         # Frame for CPU utilization summary
         self.utilization_frame = tk.Frame(self.root)  # Use Frame for multi-line CPU utilization
@@ -119,8 +119,9 @@ class TaskMonitor:
             row_values = []
             for vm in self.vms:
                 if i < len(vm.tasks):
+                    task = vm.tasks[i]
                     cpud = vm.tasks[i].cpu_demand * 100
-                    val = f"%{cpud:.2f}"
+                    val = f"t{task.task_id:5d}  %{cpud:05.2f}"
                     row_values.append(val)  # Add task ID from each VM
                 else:
                     row_values.append("")  # No task for this row in this VM
