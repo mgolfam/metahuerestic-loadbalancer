@@ -60,6 +60,8 @@ class LoadBalancer:
         """
         if algorithm_name not in self.algorithms:
             raise ValueError(f"Algorithm '{algorithm_name}' not found.")
+        
+        conf = ConfigParser.get_config_dict()
 
         algorithm = self.algorithms[algorithm_name]
 
@@ -77,7 +79,7 @@ class LoadBalancer:
 
             # Display task-to-VM allocation
             for task, vm_idx in zip(tasks, best_allocation):
-                allocated = self.vms[vm_idx].allocate_task(Task(task, execution_time=5))
+                allocated = self.vms[vm_idx].allocate_task(Task(task, execution_time=conf["task_queue"]["cpu_utilization_period"]))
                 print(f"Task {task} assigned to VM {vm_idx}", f"allocated {1}".format(allocated))
 
             # Optionally, update VM capacities based on assigned tasks
