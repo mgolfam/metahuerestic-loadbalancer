@@ -47,14 +47,28 @@ class GrayWolfOptimization(Metaheuristic):
         fitness_scores = []
         for allocation in population:
             vm_utilization = [0] * len(vms)
+
+            # Calculate VM utilization
             for task_idx, vm_idx in enumerate(allocation):
                 task_cpu = tasks[task_idx] if isinstance(tasks[task_idx], (int, float)) else tasks[task_idx].cpu
                 vm_utilization[vm_idx] += task_cpu
 
+            # Penalize overloaded VMs
+            overload_penalty = sum(
+                max(0, util - vms[vm_idx].free_cpu_percent() * vms[vm_idx].cpu_core)
+                for vm_idx, util in enumerate(vm_utilization)
+            )
+
+            # Load balance penalty
             ideal_load = sum(vm_utilization) / len(vms)
-            fitness = sum((util - ideal_load) ** 2 for util in vm_utilization)
+            load_balance_penalty = sum((util - ideal_load) ** 2 for util in vm_utilization)
+
+            # Combine penalties
+            fitness = load_balance_penalty + overload_penalty
             fitness_scores.append(fitness)
+
         return np.array(fitness_scores)
+
 
     def update_population(self, population, fitness_scores, tasks, vms, iteration):
         """

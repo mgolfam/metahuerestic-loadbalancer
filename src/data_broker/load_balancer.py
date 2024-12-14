@@ -64,7 +64,12 @@ class LoadBalancer:
         algorithm = self.algorithms[algorithm_name]
 
         # Process tasks from the task queue
+        start_time = time.time()
+        total_loop_time = 0
+        average_execution_loop_time = 0
+        loop_count = 0
         for file_name, tasks in self.task_queue.stream_work_load(self.algorithm_config[algorithm_name]["batch_size"]):
+            loop_start_time = time.time()
             print(f"Processing tasks from file: {file_name}")
 
             # Run the optimization algorithm
@@ -79,7 +84,14 @@ class LoadBalancer:
             # for task, vm_idx in zip(tasks, best_allocation):
                 # self.vms[vm_idx] -= task  # Reduce VM capacity by the task's CPU requirement
                 
+            loop_end_time = time.time()
+            loop_time = loop_end_time - loop_start_time
+            total_loop_time = total_loop_time + loop_time
             # Simulate a delay for task processing
             time.sleep(.09)
+            loop_count = loop_count + 1
+            
+        average_execution_loop_time = total_loop_time / loop_count
+        end_time = time.time()
 
 

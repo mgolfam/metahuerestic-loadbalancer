@@ -24,17 +24,42 @@ class ParticleSwarmOptimization(Metaheuristic):
         return positions, velocities
 
     def evaluate_fitness(self, population, tasks, vms):
+        """
+        Evaluates the fitness of each allocation.
+
+        Args:
+            population (ndarray): Array of task-to-VM allocations.
+            tasks (list): List of CPU utilization tasks.
+            vms (list): List of VMs with their free CPU capacities.
+
+        Returns:
+            ndarray: Fitness scores for each allocation.
+        """
         fitness_scores = []
         for allocation in population:
             vm_utilization = [0] * len(vms)
+
+            # Calculate VM utilization
             for task_idx, vm_idx in enumerate(allocation):
                 task_cpu = tasks[task_idx] if isinstance(tasks[task_idx], (int, float)) else tasks[task_idx].cpu
                 vm_utilization[vm_idx] += task_cpu
 
+            # Check for overload and penalize
+            overload_penalty = sum(
+                max(0, utilization - vms[vm_idx].free_cpu_percent() * vms[vm_idx].cpu_core)
+                for vm_idx, utilization in enumerate(vm_utilization)
+            )
+
+            # Ideal load balance calculation
             ideal_load = sum(vm_utilization) / len(vms)
-            fitness = sum((util - ideal_load) ** 2 for util in vm_utilization)
+            load_balance_penalty = sum((util - ideal_load) ** 2 for util in vm_utilization)
+
+            # Fitness score combines penalties
+            fitness = load_balance_penalty + overload_penalty
             fitness_scores.append(fitness)
+
         return np.array(fitness_scores)
+
 
     def update_population(self, positions, velocities, personal_best_positions, global_best_position):
         for i in range(self.num_particles):

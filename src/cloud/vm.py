@@ -13,6 +13,8 @@ class VM:
         self.cpu_speed = cpu_speed  # CPU speed in MHz
         self.memory_usage = 0  # Memory currently in use
         self.tasks = []  # List of tasks assigned to this VM
+        self.total_executed_tasks = 0
+        self.executed_tasks_interval = 0
 
     def cpu_usage_percent(self):
         cpu_usage = 0
