@@ -88,7 +88,14 @@ class VM:
         }
     
     def calculate_makespan(self):
+        """
+        Calculates the makespan of tasks running on this VM.
+
+        Returns:
+            float: Maximum end time of all tasks.
+        """
         max_end_time = 0
-        for task in vm.tasks:
+        for task in self.tasks:
             max_end_time = max(max_end_time, task.end_time)
         return max_end_time
+

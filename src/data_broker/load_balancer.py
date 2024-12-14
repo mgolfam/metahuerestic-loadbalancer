@@ -1,6 +1,8 @@
 import time
 import threading
 import json
+import os
+import pandas as pd
 from src.config.parser import ConfigParser
 from src.data_broker.task_queue import TaskQueue
 from src.data_broker.task_monitor import TaskMonitor
@@ -15,6 +17,8 @@ class LoadBalancer:
     """
     LoadBalancer class responsible for distributing tasks among available resources.
     """
+
+    ENERGY_COEFFICIENT = 1.2  # Energy coefficient (adjust based on your system)
 
     def __init__(self, task_queue, pm_list, algorithm_config):
         """
@@ -42,14 +46,74 @@ class LoadBalancer:
             "PSO": ParticleSwarmOptimization(algorithm_config["PSO"]),
             "GWO": GrayWolfOptimization(algorithm_config["GWO"]),
         }
-
         
+        self.metrics = {
+            "makespan": [],
+            "sla_violations": [],
+            "cpu_utilization": [],
+            "execution_time": [],
+            "tasks_executed": [],
+            "energy_consumption": []  # New metric for energy consumption
+        }
+        self.start_time = None
+
+    def collect_metrics(self, results):
+        """
+        Collect and store metrics from a single simulation run.
+        """
+        self.metrics["makespan"].append(results.get("makespan", 0))
+        self.metrics["sla_violations"].append(results.get("sla_violation", 0))
+        self.metrics["cpu_utilization"].append(results.get("cpu_utilization", 0))
+        self.metrics["execution_time"].append(results.get("execution_time", 0))
+        self.metrics["tasks_executed"].append(results.get("tasks_executed", 0))
+        self.metrics["energy_consumption"].append(results.get("energy_consumption", 0))  # Collect energy consumption
+
+    def calculate_metrics(self, tasks, vm_list, start_time, end_time):
+        """
+        Calculates metrics for the current load balancing execution.
+
+        Args:
+            tasks (list): List of tasks processed.
+            vm_list (list): List of VM instances.
+            start_time (float): Start time of the execution.
+            end_time (float): End time of the execution.
+
+        Returns:
+            dict: Calculated metrics.
+        """
+        total_tasks = len(tasks)
+        makespan = max(vm.calculate_makespan() for vm in vm_list)  # Max end time of tasks
+        cpu_utilization = sum(vm.cpu_usage_percent() for vm in vm_list) / len(vm_list)  # Average CPU usage
+        execution_time = end_time - start_time
+
+        # Calculate energy consumption
+        energy_consumption = cpu_utilization * self.ENERGY_COEFFICIENT
+
+        return {
+            "makespan": makespan,
+            "sla_violation": 0,  # Placeholder if SLA violation is tracked
+            "cpu_utilization": cpu_utilization,
+            "execution_time": execution_time,
+            "tasks_executed": total_tasks,
+            "energy_consumption": energy_consumption
+        }
+
     def run_task_monitor(self):
         """
         Starts the TaskMonitor GUI in a separate thread.
         """
-        task_monitor = TaskMonitor(vms=self.vms, update_interval=300)  # Pass data queue
+        task_monitor = TaskMonitor(vms=self.vms, update_interval=25)  # Pass data queue
         task_monitor.run()
+
+    def save_metrics(self, algorithm_name):
+        """
+        Save collected metrics to a CSV file.
+        """
+        os.makedirs(f"data/results/{algorithm_name}/", exist_ok=True)
+        df = pd.DataFrame(self.metrics)
+        filename = f"data/results/{algorithm_name}/metrics_{algorithm_name}.csv"
+        df.to_csv(filename, index=False)
+        print(f"Metrics saved to {filename}")
 
     def balance_load(self, algorithm_name):
         """
@@ -66,34 +130,35 @@ class LoadBalancer:
         algorithm = self.algorithms[algorithm_name]
 
         # Process tasks from the task queue
-        start_time = time.time()
+        self.start_time = time.time()
         total_loop_time = 0
-        average_execution_loop_time = 0
         loop_count = 0
+
+        all_tasks = []  # Collect all tasks processed
         for file_name, tasks in self.task_queue.stream_work_load(self.algorithm_config[algorithm_name]["batch_size"]):
             loop_start_time = time.time()
             print(f"Processing tasks from file: {file_name}")
+            all_tasks.extend(tasks)  # Add to the total task list
 
             # Run the optimization algorithm
             best_allocation = algorithm.optimize(tasks, self.vms)
 
             # Display task-to-VM allocation
-            for task, vm_idx in zip(tasks, best_allocation):
-                allocated = self.vms[vm_idx].allocate_task(Task(task, execution_time=conf["task_queue"]["cpu_utilization_period"]))
-                print(f"Task {task} assigned to VM {vm_idx}", f"allocated {1}".format(allocated))
+            for task_cpu, vm_idx in zip(tasks, best_allocation):
+                vm = self.vms[vm_idx]
+                task = Task(task_cpu, execution_time=conf["task_queue"]["cpu_utilization_period"])
+                allocated = vm.allocate_task(task)
+                print(f"Task{task.task_id} {task_cpu} assigned to VM {vm.vm_id}", f"allocated {allocated}")
 
-            # Optionally, update VM capacities based on assigned tasks
-            # for task, vm_idx in zip(tasks, best_allocation):
-                # self.vms[vm_idx] -= task  # Reduce VM capacity by the task's CPU requirement
-                
             loop_end_time = time.time()
             loop_time = loop_end_time - loop_start_time
-            total_loop_time = total_loop_time + loop_time
-            # Simulate a delay for task processing
-            time.sleep(.09)
-            loop_count = loop_count + 1
-            
-        average_execution_loop_time = total_loop_time / loop_count
+            total_loop_time += loop_time
+            loop_count += 1
+            time.sleep(.09)  # Simulate processing delay
+
+        # Calculate final metrics
         end_time = time.time()
+        metrics = self.calculate_metrics(all_tasks, self.vms, self.start_time, end_time)
+        self.collect_metrics(metrics)
 
-
+        print(f"Load balancing completed using {algorithm_name}. Metrics: {metrics}")

@@ -1,6 +1,6 @@
 {
   "task_queue": {
-    "directory": "assets/dataset/planetlab-workload-traces-master/20110303",
+    "directory": "assets/dataset/planetlab-workload-traces-master/short",
     "task_count": 1000,
     "task_batch_size": 50,
     "cpu_utilization_period": 0.1
