@@ -68,7 +68,7 @@ class LoadBalancer:
         self.metrics["tasks_executed"].append(results.get("tasks_executed", 0))
         self.metrics["energy_consumption"].append(results.get("energy_consumption", 0))  # Collect energy consumption
 
-    def calculate_metrics(self, tasks, vm_list, start_time, end_time):
+    def calculate_metrics(self, tasks, vm_list, start_time, end_time, sla_failed_count, avg_loop_time, avg_optimize_time):
         """
         Calculates metrics for the current load balancing execution.
 
@@ -91,11 +91,14 @@ class LoadBalancer:
 
         return {
             "makespan": makespan,
-            "sla_violation": 0,  # Placeholder if SLA violation is tracked
+            "sla_violation": sla_failed_count,  # Placeholder if SLA violation is tracked
+            "sla_violation_percent": (sla_failed_count/total_tasks) * 100,  # Placeholder if SLA violation is tracked
             "cpu_utilization": cpu_utilization,
             "execution_time": execution_time,
             "tasks_executed": total_tasks,
-            "energy_consumption": energy_consumption
+            "energy_consumption": energy_consumption,
+            "avg_loop_time": avg_loop_time,
+            "avg_optimize_time": avg_optimize_time
         }
 
     def run_task_monitor(self):
@@ -105,14 +108,27 @@ class LoadBalancer:
         task_monitor = TaskMonitor(vms=self.vms, update_interval=25)  # Pass data queue
         task_monitor.run()
 
-    def save_metrics(self, algorithm_name):
+    def save_metrics(self, algorithm_name, metrics):
         """
         Save collected metrics to a CSV file.
+        
+        Parameters:
+            algorithm_name (str): Name of the algorithm.
+            metrics (dict): Metrics collected during load balancing.
         """
+        # Create directory for saving results
         os.makedirs(f"data/results/{algorithm_name}/", exist_ok=True)
-        df = pd.DataFrame(self.metrics)
+
+        # Convert metrics dictionary to a DataFrame
+        df = pd.DataFrame([metrics])  # Wrap in a list to ensure correct DataFrame format
+        
+        # Define the file path
         filename = f"data/results/{algorithm_name}/metrics_{algorithm_name}.csv"
+        
+        # Save DataFrame to CSV
         df.to_csv(filename, index=False)
+        
+        # Confirmation message
         print(f"Metrics saved to {filename}")
 
     def balance_load(self, algorithm_name):
@@ -131,8 +147,9 @@ class LoadBalancer:
 
         # Process tasks from the task queue
         self.start_time = time.time()
-        total_loop_time = 0
+        total_optimize_time = 0
         loop_count = 0
+        sla_failed_count = 0
 
         all_tasks = []  # Collect all tasks processed
         for file_name, tasks in self.task_queue.stream_work_load(self.algorithm_config[algorithm_name]["batch_size"]):
@@ -141,24 +158,31 @@ class LoadBalancer:
             all_tasks.extend(tasks)  # Add to the total task list
 
             # Run the optimization algorithm
+            optimize_start_time = time.time()
             best_allocation = algorithm.optimize(tasks, self.vms)
+            optimize_end_time = time.time()
+            total_optimize_time = total_optimize_time + (optimize_end_time - optimize_start_time)
 
             # Display task-to-VM allocation
             for task_cpu, vm_idx in zip(tasks, best_allocation):
                 vm = self.vms[vm_idx]
                 task = Task(task_cpu, execution_time=conf["task_queue"]["cpu_utilization_period"])
                 allocated = vm.allocate_task(task)
+                if not allocated:
+                    sla_failed_count = sla_failed_count + 1
                 print(f"Task{task.task_id} {task_cpu} assigned to VM {vm.vm_id}", f"allocated {allocated}")
 
             loop_end_time = time.time()
             loop_time = loop_end_time - loop_start_time
-            total_loop_time += loop_time
+            # total_loop_time += loop_time
             loop_count += 1
-            time.sleep(.09)  # Simulate processing delay
+            time.sleep(conf["task_queue"]["task_batch_delay"])  # Simulate processing delay
 
         # Calculate final metrics
         end_time = time.time()
-        metrics = self.calculate_metrics(all_tasks, self.vms, self.start_time, end_time)
+        avg_loop_time = (end_time-self.start_time) / loop_count
+        avg_optimize_time = total_optimize_time / loop_count
+        metrics = self.calculate_metrics(all_tasks, self.vms, self.start_time, end_time, sla_failed_count, avg_loop_time, avg_optimize_time)
         self.collect_metrics(metrics)
-
+        self.save_metrics(algorithm_name=algorithm_name, metrics=metrics)
         print(f"Load balancing completed using {algorithm_name}. Metrics: {metrics}")

@@ -148,7 +148,7 @@ class TaskMonitor:
 
             # Format the utilization to two decimal points
             total_cpu_usage_percent = total_cpu_usage * 100
-            self.utilization_labels[vm.vm_id].config(text=f"vm{vm.vm_id:2.0f}-{total_cpu_usage_percent:.2f}%")
+            self.utilization_labels[vm.vm_id].config(text=f"vm{vm.vm_id:2.0f}-{total_cpu_usage_percent:05.2f}%")
 
     def run(self):
         """
