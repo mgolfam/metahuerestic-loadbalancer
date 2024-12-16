@@ -82,7 +82,7 @@ class LoadBalancer:
             dict: Calculated metrics.
         """
         total_tasks = len(tasks)
-        makespan = max(vm.calculate_makespan() for vm in vm_list)  # Max end time of tasks
+        makespan = max(vm.calculate_makespan2() for vm in vm_list)  # Max end time of tasks
         cpu_utilization = sum(vm.cpu_usage_percent() for vm in vm_list) / len(vm_list)  # Average CPU usage
         execution_time = end_time - start_time
 

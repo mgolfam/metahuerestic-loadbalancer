@@ -15,6 +15,7 @@ class VM:
         self.tasks = []  # List of tasks assigned to this VM
         self.total_executed_tasks = 0
         self.executed_tasks_interval = 0
+        self.total_executed_time = 0
 
     def cpu_usage_percent(self):
         cpu_usage = 0
@@ -63,6 +64,7 @@ class VM:
             self.memory_usage += task.memory_demand
             self.tasks.append(task)
             allocated = True
+            self.total_executed_time += task.execution_time
         
         self.show_cpu_utilization()
         return allocated
@@ -100,3 +102,14 @@ class VM:
             max_end_time = max(max_end_time, task.end_time)
         return max_end_time
 
+    def calculate_makespan2(self):
+        """
+        Calculates the makespan of tasks running on this VM.
+
+        Returns:
+            float: Maximum end time of all tasks.
+        """
+        # sum_time = 0
+        # for task in self.tasks:
+        #     sum_time += task.execution_time
+        return self.total_executed_time / self.cpu_core
