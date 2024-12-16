@@ -21,6 +21,7 @@ class VM:
         for task in self.tasks:
             if task.is_complete():
                 self.tasks.remove(task)
+                continue
             else:
                 cpu_usage += task.cpu_demand
 
